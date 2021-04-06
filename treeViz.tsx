@@ -7,6 +7,7 @@ import useForceUpdate from './useForceUpdate';
 import LinkControls from './LinkControls';
 import getLinkComponent from './getLinkComponent';
 import { Zoom } from '@visx/zoom';
+import { localPoint } from '@visx/event';
 
 // import React, { useMemo, useState, useEffect } from "react";
 // import { Group } from "@visx/group";
@@ -174,13 +175,14 @@ interface TreeNode {
   name: string;
   isExpanded?: boolean;
   children?: TreeNode[];
+  dataRequest?: string;
 }
 
 const data: TreeNode = {
   name: 'T',
   children: [
     {
-      name: 'A',
+      name: 'A', dataRequest: "fetch",
       children: [
         { name: 'A1' },
         { name: 'A2' },
@@ -287,11 +289,11 @@ export default function Viz({
       />
       
       <Zoom
-        width={totalWidth}
+        width={totalWidth-20}
         height={totalHeight}
-        scaleXMin={1 / 2}
+        scaleXMin={1/2}
         scaleXMax={4}
-        scaleYMin={1 / 2}
+        scaleYMin={1/2}
         scaleYMax={4}
         transformMatrix={initialTransform}
       >
@@ -300,7 +302,7 @@ export default function Viz({
       <svg width={totalWidth} height={totalHeight} style={{ cursor: zoom.isDragging ? 'grabbing' : 'grab' }}>
         <LinearGradient id="links-gradient" from="#fd9b93" to="#fe6e9e" />
         <rect width={totalWidth} height={totalHeight} rx={14} fill="#272b4d" />
-        <Group top={margin.top} left={margin.left}>
+        <Group top={margin.top} left={margin.left} transform={zoom.toString()}>
           <Tree
             root={hierarchy(data, d => (d.isExpanded ? null : d.children))}
             size={[sizeWidth, sizeHeight]}
@@ -320,8 +322,8 @@ export default function Viz({
                 ))}
 
                 {tree.descendants().map((node, key) => {
-                  const width = 40;
-                  const height = 20;
+                  const width = 60;
+                  const height = 40;
 
                   let top: number;
                   let left: number;
@@ -352,11 +354,11 @@ export default function Viz({
                       )}
                       {node.depth !== 0 && (
                         <rect
-                          height={height}
-                          width={width}
+                          height={40}
+                          width={60}
                           y={-height / 2}
                           x={-width / 2}
-                          fill="#272b4d"
+                          fill={node.data.dataRequest ? "#fee12b":"#272b4d"}
                           stroke={node.data.children ? '#03c0dc' : '#26deb0'}
                           strokeWidth={1}
                           strokeDasharray={node.data.children ? '0' : '2,2'}
@@ -370,22 +372,53 @@ export default function Viz({
                         />
                       )}
                       <text
-                        dy=".33em"
+                        //dy="0em"
+                        dy={node.data.dataRequest ? "0em" : '0.33em'}
+                        fontSize={9}
+                        fontFamily="Arial"
+                        textAnchor="middle"
+                        style={{ pointerEvents: 'none', textAlign: "center"}}
+                        fill={node.depth === 0 ? '#71248e' : node.data.dataRequest ? "black" : '#26deb0'}
+                      >{node.data.name}
+                      
+                      </text>
+                      {node.data.dataRequest ? (<text
+                        dy="1em"
                         fontSize={9}
                         fontFamily="Arial"
                         textAnchor="middle"
                         style={{ pointerEvents: 'none' }}
-                        fill={node.depth === 0 ? '#71248e' : node.children ? 'white' : '#26deb0'}
+                        fill="black"
                       >
-                        {node.data.name}
-                      </text>
+                       {'contains: '} {node.data.dataRequest}
+                      </text>) :null }
                     </Group>
                   );
                 })}
               </Group>
             )}
           </Tree>
+          <rect
+                width={totalWidth}
+                height={totalHeight}
+                rx={14}
+                fill="transparent"
+                onTouchStart={zoom.dragStart}
+                onTouchMove={zoom.dragMove}
+                onTouchEnd={zoom.dragEnd}
+                onMouseDown={zoom.dragStart}
+                onMouseMove={zoom.dragMove}
+                onMouseUp={zoom.dragEnd}
+                onMouseLeave={() => {
+                  if (zoom.isDragging) zoom.dragEnd();
+                }}
+                onDoubleClick={event => {
+                  const point = localPoint(event) || { x: 0, y: 0 };
+                  zoom.scale({ scaleX: 1.1, scaleY: 1.1, point });
+                }}
+              />
         </Group>
+
       </svg>
       <div className="controls">
       <button
